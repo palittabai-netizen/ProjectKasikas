@@ -1,10 +1,10 @@
-
 import { GoogleGenAI, Type } from "@google/genai";
 import { InvestmentPlan, UserProfile } from "../types";
 
-const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
-
 export async function getInvestmentAdvice(profile: UserProfile, availablePlans: InvestmentPlan[]) {
+  // Initialize inside the function to ensure process.env is ready and avoid top-level crashes
+  const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+
   const prompt = `
     As a sophisticated investment bot for a USDT Yield platform, analyze this user's profile and suggest the best strategy.
     
