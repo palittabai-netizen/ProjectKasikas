@@ -1,0 +1,7 @@
+{
+  "name": "USDT Yield Protocol",
+  "description": "A high-performance USDT-based passive income platform featuring multi-level referrals, daily automated interest, and comprehensive admin controls.",
+  "requestFramePermissions": [
+    "camera"
+  ]
+}
