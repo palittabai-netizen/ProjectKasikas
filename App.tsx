@@ -1,10 +1,8 @@
-
-import React, { useState, useEffect } from 'react';
-import { UserRole, InvestmentPlan, UserProfile, Transaction, TransactionType, TransactionStatus, Network } from './types';
+import React, { useState } from 'react';
+import { UserRole, InvestmentPlan, UserProfile, Transaction, TransactionType, TransactionStatus } from './types';
 import { INITIAL_PLANS, MOCK_USER, MOCK_ADMIN, MOCK_TRANSACTIONS, REFERRAL_LEVELS } from './constants';
 import Layout from './components/Layout';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, AreaChart, Area } from 'recharts';
-import { getInvestmentAdvice } from './services/geminiService';
 
 const App: React.FC = () => {
   const [role, setRole] = useState<UserRole>(UserRole.USER);
@@ -12,16 +10,7 @@ const App: React.FC = () => {
   const [plans, setPlans] = useState<InvestmentPlan[]>(INITIAL_PLANS);
   const [profile, setProfile] = useState<UserProfile>(MOCK_USER);
   const [transactions, setTransactions] = useState<Transaction[]>(MOCK_TRANSACTIONS);
-  const [aiInsight, setAiInsight] = useState<string>('Generating market analysis...');
   const [showModal, setShowModal] = useState<string | null>(null);
-
-  useEffect(() => {
-    const fetchInsight = async () => {
-      const insight = await getInvestmentAdvice(profile, plans);
-      setAiInsight(insight);
-    };
-    fetchInsight();
-  }, []);
 
   const handlePurchase = (plan: InvestmentPlan) => {
     if (profile.balance < plan.price) {
@@ -85,7 +74,7 @@ const App: React.FC = () => {
           ))}
         </div>
 
-        {/* AI Insight and Chart */}
+        {/* Chart and Info */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           <div className="lg:col-span-2 bg-slate-900 border border-slate-800 p-6 rounded-2xl">
             <h3 className="text-lg font-bold mb-6 text-white">Profit Analytics (Last 7 Days)</h3>
@@ -115,12 +104,12 @@ const App: React.FC = () => {
             <div>
               <div className="flex items-center space-x-2 mb-4">
                 <div className="p-2 bg-emerald-500 rounded-lg">
-                  <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>
+                  <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6"/></svg>
                 </div>
-                <h3 className="text-lg font-bold text-white">Yield Assistant</h3>
+                <h3 className="text-lg font-bold text-white">Market Trends</h3>
               </div>
               <p className="text-slate-300 italic text-sm leading-relaxed">
-                "{aiInsight}"
+                "The current market volatility suggests a stable yield environment. Our Pro Multiplier plan is currently performing at peak efficiency."
               </p>
             </div>
             <div className="mt-6">

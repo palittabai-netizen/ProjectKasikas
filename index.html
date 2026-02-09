@@ -26,21 +26,53 @@
       ::-webkit-scrollbar-thumb:hover {
         background: #475569;
       }
+      /* Error trap for debugging black screens */
+      #error-trap {
+        display: none;
+        padding: 20px;
+        background: #450a0a;
+        color: #fca5a5;
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        z-index: 9999;
+        font-family: monospace;
+      }
     </style>
+  <script>
+    // Robust Process Polyfill for Vercel/Browser environments
+    window.process = window.process || { env: {} };
+    if (typeof process === 'undefined') {
+        window.process = { env: {} };
+    }
+    
+    // Global Error Handler to catch "Black Screen" issues
+    window.onerror = function(msg, url, line, col, error) {
+      const errorBox = document.getElementById('error-trap');
+      if (errorBox) {
+        errorBox.style.display = 'block';
+        errorBox.innerHTML = `<strong>System Error:</strong> ${msg}<br><small>${url}:${line}</small>`;
+      }
+      console.error("Global Error:", error);
+    };
+  </script>
   <script type="importmap">
 {
   "imports": {
     "react": "https://esm.sh/react@18.2.0",
     "react/": "https://esm.sh/react@18.2.0/",
     "react-dom": "https://esm.sh/react-dom@18.2.0",
-    "react-dom/": "https://esm.sh/react-dom@18.2.0/",
+    "react-dom/client": "https://esm.sh/react-dom@18.2.0/client",
     "recharts": "https://esm.sh/recharts@2.12.7?external=react,react-dom",
-    "@google/genai": "https://esm.sh/@google/genai@0.1.0"
+    "react-dom/": "https://esm.sh/react-dom@^19.2.4/",
+    "@google/genai": "https://esm.sh/@google/genai@^1.40.0"
   }
 }
 </script>
 </head>
   <body>
+    <div id="error-trap"></div>
     <div id="root"></div>
     <script type="module" src="./index.tsx"></script>
   </body>
