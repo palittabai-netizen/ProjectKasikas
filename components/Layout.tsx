@@ -1,5 +1,4 @@
-
-import React from 'react';
+import React, { useState } from 'react';
 import { UserRole } from '../types';
 
 interface NavItemProps {
@@ -32,6 +31,8 @@ interface LayoutProps {
 }
 
 const Layout: React.FC<LayoutProps> = ({ children, role, activeTab, setActiveTab, username }) => {
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+
   const menuItems = role === UserRole.USER ? [
     { id: 'dashboard', label: 'Dashboard', icon: (
       <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"/></svg>
@@ -63,61 +64,86 @@ const Layout: React.FC<LayoutProps> = ({ children, role, activeTab, setActiveTab
     )},
   ];
 
+  const handleNavClick = (id: string) => {
+    setActiveTab(id);
+    setIsMobileMenuOpen(false); // Close mobile menu on selection
+  };
+
   return (
-    <div className="min-h-screen flex bg-slate-950 text-slate-200">
+    <div className="min-h-screen flex bg-slate-950 text-slate-200 font-sans">
+      {/* Mobile Overlay */}
+      {isMobileMenuOpen && (
+        <div 
+          className="fixed inset-0 bg-black/50 z-40 md:hidden backdrop-blur-sm"
+          onClick={() => setIsMobileMenuOpen(false)}
+        />
+      )}
+
       {/* Sidebar */}
-      <aside className="w-64 bg-slate-900 border-r border-slate-800 fixed h-full z-20 hidden md:block">
-        <div className="p-6">
-          <div className="flex items-center space-x-2 mb-10">
-            <div className="w-8 h-8 bg-emerald-500 rounded-lg flex items-center justify-center">
-              <span className="text-white font-bold text-xl">$</span>
+      <aside className={`fixed inset-y-0 left-0 z-50 w-64 bg-slate-900 border-r border-slate-800 transform transition-transform duration-300 ease-in-out md:translate-x-0 md:static ${
+        isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full'
+      }`}>
+        <div className="flex flex-col h-full">
+          <div className="p-6">
+            <div className="flex items-center space-x-2 mb-10">
+              <div className="w-8 h-8 bg-emerald-500 rounded-lg flex items-center justify-center shadow-lg shadow-emerald-500/20">
+                <span className="text-white font-bold text-xl">$</span>
+              </div>
+              <h1 className="text-xl font-bold tracking-tight text-white uppercase">USDT Yield</h1>
             </div>
-            <h1 className="text-xl font-bold tracking-tight text-white uppercase">USDT Yield</h1>
+
+            <nav className="space-y-2">
+              {menuItems.map((item) => (
+                <NavItem
+                  key={item.id}
+                  label={item.label}
+                  icon={item.icon}
+                  active={activeTab === item.id}
+                  onClick={() => handleNavClick(item.id)}
+                />
+              ))}
+            </nav>
           </div>
 
-          <nav className="space-y-2">
-            {menuItems.map((item) => (
-              <NavItem
-                key={item.id}
-                label={item.label}
-                icon={item.icon}
-                active={activeTab === item.id}
-                onClick={() => setActiveTab(item.id)}
-              />
-            ))}
-          </nav>
-        </div>
-
-        <div className="absolute bottom-0 w-full p-6 border-t border-slate-800">
-          <div className="flex items-center space-x-3">
-            <div className="w-10 h-10 rounded-full bg-slate-700 flex items-center justify-center font-bold text-emerald-400">
-              {username.charAt(0)}
-            </div>
-            <div className="overflow-hidden">
-              <p className="text-sm font-semibold truncate text-white">{username}</p>
-              <p className="text-xs text-slate-500 capitalize">{role.toLowerCase()}</p>
+          <div className="mt-auto p-6 border-t border-slate-800 bg-slate-900/50">
+            <div className="flex items-center space-x-3">
+              <div className="w-10 h-10 rounded-full bg-slate-700 flex items-center justify-center font-bold text-emerald-400 border border-slate-600">
+                {username.charAt(0)}
+              </div>
+              <div className="overflow-hidden">
+                <p className="text-sm font-semibold truncate text-white">{username}</p>
+                <p className="text-xs text-slate-500 capitalize">{role.toLowerCase()}</p>
+              </div>
             </div>
           </div>
         </div>
       </aside>
 
       {/* Main Content */}
-      <main className="flex-1 md:ml-64 p-6 md:p-10">
-        <header className="flex flex-col md:flex-row md:items-center justify-between mb-8 gap-4">
-          <div>
-            <h2 className="text-2xl font-bold text-white capitalize">{activeTab.replace('-', ' ')}</h2>
-            <p className="text-slate-500 text-sm">Welcome back to your decentralized yield terminal.</p>
+      <main className="flex-1 flex flex-col min-w-0 overflow-hidden md:ml-0">
+        <header className="bg-slate-900/50 backdrop-blur-md border-b border-slate-800 sticky top-0 z-30 px-6 py-4 flex items-center justify-between gap-4">
+          <div className="flex items-center gap-3">
+             {/* Mobile Hamburger */}
+            <button 
+              onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
+              className="md:hidden text-slate-400 hover:text-white p-2 -ml-2 rounded-lg hover:bg-slate-800"
+            >
+              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 6h16M4 12h16M4 18h16"/></svg>
+            </button>
+            <div>
+              <h2 className="text-xl md:text-2xl font-bold text-white capitalize truncate">{activeTab.replace(/-/g, ' ')}</h2>
+            </div>
           </div>
           
           <div className="flex items-center space-x-3">
-            <div className="bg-slate-900 border border-slate-800 px-4 py-2 rounded-lg flex items-center space-x-2">
+            <div className="hidden md:flex bg-slate-900 border border-slate-800 px-4 py-2 rounded-lg items-center space-x-2">
               <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
               <span className="text-sm font-medium text-emerald-400 uppercase">Live Network</span>
             </div>
             {role === UserRole.USER && (
                <button 
                 onClick={() => setActiveTab('wallet')}
-                className="bg-emerald-600 hover:bg-emerald-500 text-white px-5 py-2 rounded-lg font-semibold shadow-lg shadow-emerald-900/20 transition-all"
+                className="bg-emerald-600 hover:bg-emerald-500 text-white px-4 py-2 text-sm md:text-base rounded-lg font-semibold shadow-lg shadow-emerald-900/20 transition-all whitespace-nowrap"
                >
                  Add Funds
                </button>
@@ -125,7 +151,9 @@ const Layout: React.FC<LayoutProps> = ({ children, role, activeTab, setActiveTab
           </div>
         </header>
 
-        {children}
+        <div className="flex-1 overflow-y-auto p-4 md:p-10 scroll-smooth">
+          {children}
+        </div>
       </main>
     </div>
   );
