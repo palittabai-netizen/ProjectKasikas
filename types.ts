@@ -59,15 +59,6 @@ export interface Transaction {
   notes?: string;
 }
 
-export interface Referral {
-  id: string;
-  username: string;
-  level: number;
-  dateJoined: string;
-  totalInvested: number;
-  earnings: number;
-}
-
 export interface UserProfile {
   id: string;
   username: string;
@@ -77,4 +68,34 @@ export interface UserProfile {
   withdrawableAmount: number;
   referralCode: string;
   referredBy?: string;
+}
+
+// --- REFERRAL MODULE TYPES ---
+
+export interface ReferralConfig {
+  maxLevels: number;
+  levelPercentages: number[]; // Index 0 = Level 1, Index 1 = Level 2, etc.
+  active: boolean;
+}
+
+export interface ReferralCommission {
+  id: string;
+  sourceUserId: string;      // Who purchased the plan
+  beneficiaryUserId: string; // Who gets the commission
+  level: number;
+  planName: string;
+  baseAmount: number;
+  percentage: number;
+  commissionAmount: number;
+  status: TransactionStatus;
+  date: string;
+}
+
+export interface ReferralUser {
+  id: string;
+  username: string;
+  dateJoined: string;
+  uplinerId: string; // Direct referrer
+  totalInvested: number;
+  status: 'ACTIVE' | 'INACTIVE';
 }

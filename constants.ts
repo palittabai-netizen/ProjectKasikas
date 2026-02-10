@@ -1,5 +1,5 @@
 
-import { InvestmentPlan, UserRole, UserProfile, Transaction, TransactionType, TransactionStatus, Network } from './types';
+import { InvestmentPlan, UserRole, UserProfile, Transaction, TransactionType, TransactionStatus, Network, ReferralConfig, ReferralUser, ReferralCommission } from './types';
 
 export const INITIAL_PLANS: InvestmentPlan[] = [
   {
@@ -78,6 +78,47 @@ export const MOCK_TRANSACTIONS: Transaction[] = [
     type: TransactionType.INTEREST,
     amount: 11,
     status: TransactionStatus.COMPLETED
+  }
+];
+
+// --- REFERRAL MOCK DATA ---
+
+export const INITIAL_REFERRAL_CONFIG: ReferralConfig = {
+  maxLevels: 3,
+  levelPercentages: [10, 5, 2], // Level 1: 10%, Level 2: 5%, Level 3: 2%
+  active: true
+};
+
+export const MOCK_REFERRAL_USERS: ReferralUser[] = [
+  { id: 'user-2', username: 'DownlineAlpha', dateJoined: '2024-06-01', uplinerId: 'user-1', totalInvested: 500, status: 'ACTIVE' },
+  { id: 'user-3', username: 'DownlineBeta', dateJoined: '2024-06-02', uplinerId: 'user-1', totalInvested: 100, status: 'ACTIVE' },
+  { id: 'user-4', username: 'DownlineGamma', dateJoined: '2024-06-05', uplinerId: 'user-2', totalInvested: 1000, status: 'ACTIVE' }, // Level 2 for user-1
+];
+
+export const MOCK_COMMISSIONS: ReferralCommission[] = [
+  {
+    id: 'comm-1',
+    sourceUserId: 'DownlineAlpha',
+    beneficiaryUserId: 'user-1',
+    level: 1,
+    planName: 'Pro Multiplier',
+    baseAmount: 500,
+    percentage: 10,
+    commissionAmount: 50,
+    status: TransactionStatus.COMPLETED,
+    date: '2024-06-01 10:00:00'
+  },
+  {
+    id: 'comm-2',
+    sourceUserId: 'DownlineGamma',
+    beneficiaryUserId: 'user-1',
+    level: 2,
+    planName: 'Elite Wealth',
+    baseAmount: 1000,
+    percentage: 5,
+    commissionAmount: 50,
+    status: TransactionStatus.PENDING, // Needs approval
+    date: '2024-06-05 14:20:00'
   }
 ];
 

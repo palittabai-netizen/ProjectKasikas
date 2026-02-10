@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
-import { UserRole, InvestmentPlan, UserProfile, Transaction, TransactionType, TransactionStatus, Network } from './types';
-import { INITIAL_PLANS, MOCK_USER, MOCK_ADMIN, MOCK_TRANSACTIONS, REFERRAL_LEVELS } from './constants';
+import { UserRole, InvestmentPlan, UserProfile, Transaction, TransactionType, TransactionStatus, Network, ReferralConfig, ReferralUser, ReferralCommission } from './types';
+import { INITIAL_PLANS, MOCK_USER, MOCK_ADMIN, MOCK_TRANSACTIONS, INITIAL_REFERRAL_CONFIG, MOCK_REFERRAL_USERS, MOCK_COMMISSIONS } from './constants';
 import Layout from './components/Layout';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, AreaChart, Area } from 'recharts';
 
@@ -31,6 +31,12 @@ const App: React.FC = () => {
     },
     ...MOCK_TRANSACTIONS
   ]);
+
+  // Referral Module States
+  const [referralConfig, setReferralConfig] = useState<ReferralConfig>(INITIAL_REFERRAL_CONFIG);
+  const [referralUsers, setReferralUsers] = useState<ReferralUser[]>(MOCK_REFERRAL_USERS);
+  const [commissions, setCommissions] = useState<ReferralCommission[]>(MOCK_COMMISSIONS);
+  const [referralAdminTab, setReferralAdminTab] = useState<'settings' | 'network' | 'commissions'>('settings');
 
   // User UI States - Wallet
   const [walletTab, setWalletTab] = useState<'deposit' | 'withdraw'>('deposit');
@@ -122,6 +128,49 @@ const App: React.FC = () => {
     setWithdrawAddress('');
     alert("Withdrawal requested! Funds have been locked until approval.");
   };
+
+  // --- HANDLERS: Referral Logic ---
+
+  const handleApproveCommission = (commissionId: string) => {
+    const comm = commissions.find(c => c.id === commissionId);
+    if (!comm) return;
+    if (comm.status === TransactionStatus.APPROVED || comm.status === TransactionStatus.COMPLETED) return;
+
+    // 1. Update Commission Status
+    setCommissions(prev => prev.map(c => c.id === commissionId ? { ...c, status: TransactionStatus.APPROVED } : c));
+
+    // 2. Sync: Add to User Balance (if beneficiary is current mocked user for demo)
+    if (comm.beneficiaryUserId === MOCK_USER.id) {
+       setProfile(prev => ({
+         ...prev,
+         balance: prev.balance + comm.commissionAmount
+       }));
+    }
+
+    // 3. Sync: Add to Transaction History
+    const newTx: Transaction = {
+      id: `tx-comm-${Date.now()}`,
+      userId: comm.beneficiaryUserId,
+      date: new Date().toISOString().replace('T', ' ').substring(0, 19),
+      type: TransactionType.REFERRAL_COMMISSION,
+      amount: comm.commissionAmount,
+      status: TransactionStatus.COMPLETED,
+      notes: `Referral Bonus L${comm.level} from ${comm.sourceUserId}`
+    };
+    setTransactions(prev => [newTx, ...prev]);
+
+    alert("Commission Approved & Credited!");
+  };
+
+  const handleRejectCommission = (commissionId: string) => {
+    setCommissions(prev => prev.map(c => c.id === commissionId ? { ...c, status: TransactionStatus.REJECTED } : c));
+  };
+
+  const handleSaveReferralSettings = (newConfig: ReferralConfig) => {
+    setReferralConfig(newConfig);
+    alert("Referral settings updated successfully.");
+  };
+
 
   // --- HANDLERS: Admin Actions ---
 
@@ -420,10 +469,10 @@ const App: React.FC = () => {
                     <td className="px-6 py-4 font-medium capitalize">{tx.type.replace('_', ' ').toLowerCase()}</td>
                     <td className="px-6 py-4 text-slate-400 text-xs">{tx.network || '-'}</td>
                     <td className={`px-6 py-4 font-mono font-bold ${
-                      tx.type === TransactionType.DEPOSIT || tx.type === TransactionType.INTEREST ? 'text-emerald-400' : 
+                      tx.type === TransactionType.DEPOSIT || tx.type === TransactionType.INTEREST || tx.type === TransactionType.REFERRAL_COMMISSION ? 'text-emerald-400' : 
                       tx.type === TransactionType.WITHDRAWAL || tx.type === TransactionType.PLAN_PURCHASE ? 'text-red-400' : 'text-white'
                     }`}>
-                      {tx.type === TransactionType.DEPOSIT || tx.type === TransactionType.INTEREST ? '+' : '-'}{tx.amount} USDT
+                      {tx.type === TransactionType.DEPOSIT || tx.type === TransactionType.INTEREST || tx.type === TransactionType.REFERRAL_COMMISSION ? '+' : '-'}{tx.amount} USDT
                     </td>
                     <td className="px-6 py-4">
                       <span className={`px-2 py-1 rounded-full text-[10px] font-bold uppercase ${
@@ -740,6 +789,257 @@ const App: React.FC = () => {
     </div>
   );
 
+  // --- REFERRAL VIEWS ---
+
+  const renderReferrals = () => {
+    // User View
+    const totalEarned = commissions
+      .filter(c => c.beneficiaryUserId === MOCK_USER.id && c.status === TransactionStatus.COMPLETED)
+      .reduce((sum, c) => sum + c.commissionAmount, 0);
+
+    return (
+      <div className="space-y-6">
+         {/* Top Stats */}
+         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+           <div className="bg-slate-900 border border-slate-800 p-6 rounded-2xl">
+              <p className="text-sm font-medium text-slate-400">Total Referral Earnings</p>
+              <h3 className="text-3xl font-bold text-emerald-400 mt-2">{totalEarned.toFixed(2)} USDT</h3>
+           </div>
+           <div className="bg-slate-900 border border-slate-800 p-6 rounded-2xl">
+              <p className="text-sm font-medium text-slate-400">Total Referrals</p>
+              <h3 className="text-3xl font-bold text-white mt-2">{referralUsers.filter(u => u.uplinerId === MOCK_USER.id).length}</h3>
+           </div>
+           <div className="bg-gradient-to-br from-emerald-900 to-slate-900 border border-emerald-800 p-6 rounded-2xl">
+              <p className="text-sm font-medium text-emerald-200">Your Referral Link</p>
+              <div className="mt-2 flex bg-slate-950/50 rounded-lg border border-slate-700 overflow-hidden">
+                 <input 
+                   readOnly 
+                   value={`https://platform.com/register?ref=${profile.referralCode}`}
+                   className="bg-transparent text-sm text-slate-300 px-3 py-2 w-full focus:outline-none font-mono"
+                 />
+                 <button onClick={() => alert("Copied!")} className="bg-emerald-600 px-4 text-white text-xs font-bold uppercase hover:bg-emerald-500">
+                   Copy
+                 </button>
+              </div>
+              <p className="text-[10px] text-emerald-300/60 mt-2">Share this link to earn commissions</p>
+           </div>
+         </div>
+
+         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            {/* My Referrals Table */}
+            <div className="bg-slate-900 border border-slate-800 rounded-2xl overflow-hidden">
+               <div className="p-6 border-b border-slate-800">
+                  <h3 className="text-lg font-bold text-white">My Network</h3>
+               </div>
+               <div className="overflow-x-auto">
+                  <table className="w-full text-left">
+                     <thead className="bg-slate-800/50 text-slate-500 text-xs uppercase tracking-wider">
+                        <tr>
+                           <th className="px-6 py-4">User</th>
+                           <th className="px-6 py-4">Joined</th>
+                           <th className="px-6 py-4">Invested</th>
+                           <th className="px-6 py-4">Status</th>
+                        </tr>
+                     </thead>
+                     <tbody className="divide-y divide-slate-800">
+                        {referralUsers.filter(u => u.uplinerId === MOCK_USER.id).map(user => (
+                           <tr key={user.id} className="text-sm">
+                              <td className="px-6 py-4 font-medium text-white">{user.username}</td>
+                              <td className="px-6 py-4 text-slate-400">{user.dateJoined}</td>
+                              <td className="px-6 py-4 font-mono text-emerald-400">{user.totalInvested} USDT</td>
+                              <td className="px-6 py-4"><span className="text-[10px] bg-emerald-900/30 text-emerald-400 px-2 py-1 rounded uppercase font-bold">{user.status}</span></td>
+                           </tr>
+                        ))}
+                     </tbody>
+                  </table>
+               </div>
+            </div>
+
+            {/* Commissions Table */}
+            <div className="bg-slate-900 border border-slate-800 rounded-2xl overflow-hidden">
+               <div className="p-6 border-b border-slate-800">
+                  <h3 className="text-lg font-bold text-white">Commission History</h3>
+               </div>
+               <div className="overflow-x-auto">
+                  <table className="w-full text-left">
+                     <thead className="bg-slate-800/50 text-slate-500 text-xs uppercase tracking-wider">
+                        <tr>
+                           <th className="px-6 py-4">Date</th>
+                           <th className="px-6 py-4">Source</th>
+                           <th className="px-6 py-4">Level</th>
+                           <th className="px-6 py-4">Amount</th>
+                           <th className="px-6 py-4">Status</th>
+                        </tr>
+                     </thead>
+                     <tbody className="divide-y divide-slate-800">
+                        {commissions.filter(c => c.beneficiaryUserId === MOCK_USER.id).map(comm => (
+                           <tr key={comm.id} className="text-sm">
+                              <td className="px-6 py-4 text-slate-400">{comm.date}</td>
+                              <td className="px-6 py-4 text-white font-medium">{comm.sourceUserId}</td>
+                              <td className="px-6 py-4 text-slate-400 text-center">{comm.level}</td>
+                              <td className="px-6 py-4 font-mono text-emerald-400">+{comm.commissionAmount}</td>
+                              <td className="px-6 py-4">
+                                 <span className={`text-[10px] px-2 py-1 rounded uppercase font-bold ${
+                                    comm.status === TransactionStatus.COMPLETED ? 'bg-emerald-900/30 text-emerald-400' : 
+                                    comm.status === TransactionStatus.PENDING ? 'bg-amber-900/30 text-amber-400' : 'bg-red-900/30 text-red-400'
+                                 }`}>
+                                    {comm.status}
+                                 </span>
+                              </td>
+                           </tr>
+                        ))}
+                     </tbody>
+                  </table>
+               </div>
+            </div>
+         </div>
+      </div>
+    );
+  };
+
+  const renderReferralManagement = () => {
+     // Admin View
+     return (
+        <div className="space-y-6">
+           <div className="flex space-x-2 bg-slate-900 p-1 rounded-xl border border-slate-800 w-fit mb-6">
+            <button onClick={() => setReferralAdminTab('settings')} className={`px-6 py-2 rounded-lg text-sm font-bold transition-all ${referralAdminTab === 'settings' ? 'bg-emerald-600 text-white shadow-lg' : 'text-slate-400 hover:text-white'}`}>Settings</button>
+            <button onClick={() => setReferralAdminTab('network')} className={`px-6 py-2 rounded-lg text-sm font-bold transition-all ${referralAdminTab === 'network' ? 'bg-emerald-600 text-white shadow-lg' : 'text-slate-400 hover:text-white'}`}>Network Tree</button>
+            <button onClick={() => setReferralAdminTab('commissions')} className={`px-6 py-2 rounded-lg text-sm font-bold transition-all ${referralAdminTab === 'commissions' ? 'bg-emerald-600 text-white shadow-lg' : 'text-slate-400 hover:text-white'}`}>Commissions</button>
+          </div>
+
+          {referralAdminTab === 'settings' && (
+             <div className="bg-slate-900 border border-slate-800 rounded-2xl p-6 max-w-xl">
+                <h3 className="text-lg font-bold text-white mb-6">Referral Configuration</h3>
+                <div className="space-y-4">
+                   <div className="flex items-center justify-between p-4 bg-slate-800/50 rounded-xl">
+                      <div>
+                         <p className="font-semibold text-white">Enable Referral System</p>
+                         <p className="text-xs text-slate-500">Master switch for commission generation</p>
+                      </div>
+                      <input 
+                        type="checkbox" 
+                        checked={referralConfig.active}
+                        onChange={(e) => setReferralConfig({...referralConfig, active: e.target.checked})}
+                        className="w-5 h-5 accent-emerald-500"
+                      />
+                   </div>
+                   
+                   <div>
+                      <label className="block text-sm font-medium text-slate-400 mb-2">Max Levels</label>
+                      <input 
+                        type="number" 
+                        value={referralConfig.maxLevels}
+                        onChange={(e) => setReferralConfig({...referralConfig, maxLevels: Number(e.target.value)})}
+                        className="w-full bg-slate-800 border border-slate-700 rounded-lg p-3 text-white"
+                      />
+                   </div>
+
+                   <div className="space-y-2">
+                      <label className="block text-sm font-medium text-slate-400">Level Percentages (%)</label>
+                      {Array.from({ length: referralConfig.maxLevels }).map((_, idx) => (
+                         <div key={idx} className="flex items-center gap-3">
+                            <span className="text-xs text-slate-500 w-16">Level {idx + 1}</span>
+                            <input 
+                              type="number" 
+                              value={referralConfig.levelPercentages[idx] || 0}
+                              onChange={(e) => {
+                                 const newPercs = [...referralConfig.levelPercentages];
+                                 newPercs[idx] = Number(e.target.value);
+                                 setReferralConfig({...referralConfig, levelPercentages: newPercs});
+                              }}
+                              className="flex-1 bg-slate-800 border border-slate-700 rounded-lg p-2 text-white text-sm"
+                            />
+                         </div>
+                      ))}
+                   </div>
+                   
+                   <button onClick={() => handleSaveReferralSettings(referralConfig)} className="w-full py-3 bg-emerald-600 hover:bg-emerald-500 text-white font-bold rounded-xl mt-4">Save Configuration</button>
+                </div>
+             </div>
+          )}
+
+          {referralAdminTab === 'network' && (
+             <div className="bg-slate-900 border border-slate-800 rounded-2xl overflow-hidden">
+                <div className="overflow-x-auto">
+                   <table className="w-full text-left">
+                      <thead className="bg-slate-800/50 text-slate-500 text-xs uppercase tracking-wider">
+                         <tr>
+                            <th className="px-6 py-4">User ID</th>
+                            <th className="px-6 py-4">Username</th>
+                            <th className="px-6 py-4">Upliner (Referrer)</th>
+                            <th className="px-6 py-4">Joined</th>
+                            <th className="px-6 py-4">Status</th>
+                         </tr>
+                      </thead>
+                      <tbody className="divide-y divide-slate-800">
+                         {referralUsers.map(user => (
+                            <tr key={user.id} className="text-sm">
+                               <td className="px-6 py-4 text-slate-400">{user.id}</td>
+                               <td className="px-6 py-4 font-medium text-white">{user.username}</td>
+                               <td className="px-6 py-4 text-emerald-400 font-mono">{user.uplinerId}</td>
+                               <td className="px-6 py-4 text-slate-500">{user.dateJoined}</td>
+                               <td className="px-6 py-4">{user.status}</td>
+                            </tr>
+                         ))}
+                      </tbody>
+                   </table>
+                </div>
+             </div>
+          )}
+
+          {referralAdminTab === 'commissions' && (
+             <div className="bg-slate-900 border border-slate-800 rounded-2xl overflow-hidden">
+                <div className="overflow-x-auto">
+                   <table className="w-full text-left">
+                      <thead className="bg-slate-800/50 text-slate-500 text-xs uppercase tracking-wider">
+                         <tr>
+                            <th className="px-6 py-4">Date</th>
+                            <th className="px-6 py-4">Beneficiary</th>
+                            <th className="px-6 py-4">Source</th>
+                            <th className="px-6 py-4">Plan / Level</th>
+                            <th className="px-6 py-4">Amount</th>
+                            <th className="px-6 py-4">Status</th>
+                            <th className="px-6 py-4 text-right">Actions</th>
+                         </tr>
+                      </thead>
+                      <tbody className="divide-y divide-slate-800">
+                         {commissions.map(comm => (
+                            <tr key={comm.id} className="text-sm hover:bg-slate-800/30">
+                               <td className="px-6 py-4 text-slate-400">{comm.date}</td>
+                               <td className="px-6 py-4 font-bold text-white">{comm.beneficiaryUserId}</td>
+                               <td className="px-6 py-4 text-slate-300">{comm.sourceUserId}</td>
+                               <td className="px-6 py-4 text-xs text-slate-400">
+                                  <div>{comm.planName}</div>
+                                  <div>Level {comm.level} ({comm.percentage}%)</div>
+                               </td>
+                               <td className="px-6 py-4 font-mono text-emerald-400">{comm.commissionAmount} USDT</td>
+                               <td className="px-6 py-4">
+                                  <span className={`text-[10px] px-2 py-1 rounded uppercase font-bold ${
+                                     comm.status === TransactionStatus.COMPLETED || comm.status === TransactionStatus.APPROVED ? 'bg-emerald-900/30 text-emerald-400' : 
+                                     comm.status === TransactionStatus.PENDING ? 'bg-amber-900/30 text-amber-400' : 'bg-red-900/30 text-red-400'
+                                  }`}>
+                                     {comm.status}
+                                  </span>
+                               </td>
+                               <td className="px-6 py-4 text-right">
+                                  {comm.status === TransactionStatus.PENDING && (
+                                     <div className="flex justify-end gap-2">
+                                        <button onClick={() => handleApproveCommission(comm.id)} className="bg-emerald-600 hover:bg-emerald-500 text-white px-3 py-1 rounded text-xs font-bold">Approve</button>
+                                        <button onClick={() => handleRejectCommission(comm.id)} className="bg-red-900/50 hover:bg-red-900 text-red-400 px-3 py-1 rounded text-xs font-bold border border-red-900">Reject</button>
+                                     </div>
+                                  )}
+                               </td>
+                            </tr>
+                         ))}
+                      </tbody>
+                   </table>
+                </div>
+             </div>
+          )}
+        </div>
+     );
+  };
+
   // ADMIN VIEW: System Overview
   const renderAdminOverview = () => (
     <div className="space-y-6">
@@ -788,13 +1088,13 @@ const App: React.FC = () => {
          <div className="bg-slate-900 border border-slate-800 p-6 rounded-2xl">
             <h3 className="text-lg font-bold text-white mb-6">Referral Tiers</h3>
             <div className="space-y-4">
-               {REFERRAL_LEVELS.map(lvl => (
-                 <div key={lvl.level} className="flex items-center justify-between p-3 border-b border-slate-800 last:border-0">
-                    <span className="text-sm font-medium">Level {lvl.level}</span>
-                    <span className="text-emerald-400 font-bold">{lvl.percentage}%</span>
+               {referralConfig.levelPercentages.map((perc, idx) => (
+                 <div key={idx} className="flex items-center justify-between p-3 border-b border-slate-800 last:border-0">
+                    <span className="text-sm font-medium">Level {idx + 1}</span>
+                    <span className="text-emerald-400 font-bold">{perc}%</span>
                  </div>
                ))}
-               <button onClick={() => setActiveTab('settings')} className="w-full mt-4 py-2 border border-slate-700 rounded-lg text-xs font-bold text-slate-400 hover:text-white transition-colors">
+               <button onClick={() => setActiveTab('referrals-admin')} className="w-full mt-4 py-2 border border-slate-700 rounded-lg text-xs font-bold text-slate-400 hover:text-white transition-colors">
                  Manage Tiers
                </button>
             </div>
@@ -1261,11 +1561,13 @@ const App: React.FC = () => {
       case 'dashboard': return renderDashboard();
       case 'plans': return renderPlans();
       case 'wallet': return renderWallet();
+      case 'referrals': return renderReferrals();
       
       // Admin Routes
       case 'admin-overview': return renderAdminOverview();
       case 'manage-plans': return renderManagePlans();
       case 'approvals': return renderApprovals();
+      case 'referrals-admin': return renderReferralManagement();
       case 'settings': return renderSettings();
       
       default: return (
