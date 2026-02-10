@@ -54,6 +54,9 @@ export interface Transaction {
   network?: Network;
   status: TransactionStatus;
   txid?: string;
+  address?: string;
+  fee?: number;
+  notes?: string;
 }
 
 export interface Referral {
